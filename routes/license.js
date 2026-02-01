@@ -241,6 +241,103 @@ router.post('/activate', async (req, res) => {
     }
 });
 
+// 3. Revoke/Deactivate License (Admin only - Lisansı iptal et)
+router.post('/revoke', async (req, res) => {
+    const { license_id } = req.body;
+
+    if (!license_id) return res.status(400).json({ message: 'Lisans ID gerekli' });
+
+    try {
+        const [rows] = await req.db.execute('SELECT * FROM licenses WHERE id = ?', [license_id]);
+        if (rows.length === 0) return res.status(404).json({ message: 'Lisans bulunamadı' });
+
+        await req.db.execute(
+            'UPDATE licenses SET is_active = FALSE WHERE id = ?',
+            [license_id]
+        );
+
+        await logActivity(req.db, rows[0].dealer_id, 'LICENSE_REVOKED', `Lisans iptal edildi: ${rows[0].license_key}`, getIp(req));
+
+        res.json({ success: true, message: 'Lisans iptal edildi' });
+
+    } catch (error) {
+        console.error('License revoke error:', error);
+        res.status(500).json({ message: 'İptal hatası' });
+    }
+});
+
+// 4. Reactivate License (Admin only - Lisansı tekrar aktif et)
+router.post('/reactivate', async (req, res) => {
+    const { license_id } = req.body;
+
+    if (!license_id) return res.status(400).json({ message: 'Lisans ID gerekli' });
+
+    try {
+        const [rows] = await req.db.execute('SELECT * FROM licenses WHERE id = ?', [license_id]);
+        if (rows.length === 0) return res.status(404).json({ message: 'Lisans bulunamadı' });
+
+        await req.db.execute(
+            'UPDATE licenses SET is_active = TRUE WHERE id = ?',
+            [license_id]
+        );
+
+        await logActivity(req.db, rows[0].dealer_id, 'LICENSE_REACTIVATED', `Lisans tekrar aktifleştirildi: ${rows[0].license_key}`, getIp(req));
+
+        res.json({ success: true, message: 'Lisans tekrar aktifleştirildi' });
+
+    } catch (error) {
+        console.error('License reactivate error:', error);
+        res.status(500).json({ message: 'Aktifleştirme hatası' });
+    }
+});
+
+// 5. Reset License (Admin only - MAC adresini sıfırla, başka cihaza taşınabilsin)
+router.post('/reset', async (req, res) => {
+    const { license_id } = req.body;
+
+    if (!license_id) return res.status(400).json({ message: 'Lisans ID gerekli' });
+
+    try {
+        const [rows] = await req.db.execute('SELECT * FROM licenses WHERE id = ?', [license_id]);
+        if (rows.length === 0) return res.status(404).json({ message: 'Lisans bulunamadı' });
+
+        await req.db.execute(
+            'UPDATE licenses SET mac_address = NULL, device_name = NULL, activated_at = NULL WHERE id = ?',
+            [license_id]
+        );
+
+        await logActivity(req.db, rows[0].dealer_id, 'LICENSE_RESET', `Lisans sıfırlandı: ${rows[0].license_key}`, getIp(req));
+
+        res.json({ success: true, message: 'Lisans sıfırlandı, yeni cihaza aktive edilebilir' });
+
+    } catch (error) {
+        console.error('License reset error:', error);
+        res.status(500).json({ message: 'Sıfırlama hatası' });
+    }
+});
+
+// 6. Delete License (Admin only - Kalıcı silme)
+router.delete('/:id', async (req, res) => {
+    const { id } = req.params;
+
+    if (!id) return res.status(400).json({ message: 'Lisans ID gerekli' });
+
+    try {
+        const [rows] = await req.db.execute('SELECT * FROM licenses WHERE id = ?', [id]);
+        if (rows.length === 0) return res.status(404).json({ message: 'Lisans bulunamadı' });
+
+        await req.db.execute('DELETE FROM licenses WHERE id = ?', [id]);
+
+        await logActivity(req.db, rows[0].dealer_id, 'LICENSE_DELETED', `Lisans silindi: ${rows[0].license_key}`, getIp(req));
+
+        res.json({ success: true, message: 'Lisans kalıcı olarak silindi' });
+
+    } catch (error) {
+        console.error('License delete error:', error);
+        res.status(500).json({ message: 'Silme hatası' });
+    }
+});
+
 // Helper Function for Logs
 async function logActivity(db, dealerId, type, desc, ip) {
     try {

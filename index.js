@@ -12,12 +12,37 @@ const PORT = process.env.PORT || 3000;
 // Security Middleware
 app.use(helmet());
 
-// CORS Configuration - Allow all origins for now
+// CORS Configuration - Production Security
+const allowedOrigins = [
+  'https://nisa.okilay.com',
+  'https://www.nisa.okilay.com',
+  'http://localhost:3002',      // Web admin dev
+  'http://127.0.0.1:3002',
+  'tauri://localhost',           // Tauri desktop app
+  'http://tauri.localhost'
+];
+
 app.use(cors({
-    origin: true,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, curl)
+    if (!origin) return callback(null, true);
+
+    // Development mode - allow localhost
+    if (process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+
+    // Production mode - check whitelist
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
 
 // Handle preflight requests explicitly
