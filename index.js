@@ -14,8 +14,8 @@ app.use(helmet());
 
 // CORS Configuration - Production Security
 const allowedOrigins = [
-  'https://nisa.okilay.com',
-  'https://www.nisa.okilay.com',
+  'https://nisayapimarket.com',
+  'https://www.nisayapimarket.com',
   'http://localhost:3002',      // Web admin dev
   'http://127.0.0.1:3002',
   'tauri://localhost',           // Tauri desktop app
